@@ -250,8 +250,16 @@ class EmotionCLIPDetector:
             # Preprocess frame
             frame_tensor = self.preprocess_frame(frame)
             
-            # Get image embeddings
-            image_features = self.model.encode_image(frame_tensor)
+            # Create mask with same spatial dimensions as input image (224x224)
+            # All ones means no masking - we want to use the entire image
+            batch_size = frame_tensor.shape[0]
+            height = frame_tensor.shape[2]  # 224
+            width = frame_tensor.shape[3]   # 224
+            mask = torch.ones(batch_size, height, width, 
+                            dtype=torch.bool, device=self.device)
+            
+            # Get image embeddings with mask
+            image_features = self.model.encode_image(frame_tensor, mask)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
             
             # Compute similarity with emotion prompts
