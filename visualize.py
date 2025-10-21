@@ -250,8 +250,13 @@ class EmotionCLIPDetector:
             # Preprocess frame
             frame_tensor = self.preprocess_frame(frame)
             
+            # Create mask (all ones - no masking needed for single frame)
+            batch_size = frame_tensor.shape[0]
+            mask = torch.ones(batch_size, frame_tensor.shape[2], frame_tensor.shape[3], 
+                            dtype=torch.bool, device=self.device)
+            
             # Get image embeddings
-            image_features = self.model.encode_image(frame_tensor)
+            image_features = self.model.encode_image(frame_tensor, mask)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
             
             # Compute similarity with emotion prompts
@@ -417,7 +422,7 @@ if __name__ == "__main__":
         )
         
         # Process video
-        video_path = "test.mp4"
+        video_path = "test_1.mp4"
         if os.path.exists(video_path):
             print(f"\nProcessing video: {video_path}")
             results = detector.process_video(video_path, fps=8, use_face_detection=True)
