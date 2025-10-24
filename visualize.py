@@ -21,16 +21,16 @@ class EmotionVideoVisualizer:
         self.results = []
         self.frames_data = []
         
-        # Color map for emotions
+        # Color map for emotions (matching detector labels)
         self.color_map = {
             'happy': (255, 215, 0),      # Gold
             'sad': (65, 105, 225),       # Royal Blue
             'angry': (255, 69, 0),       # Orange Red
-            'calm': (144, 238, 144),     # Light Green
-            'fearful': (153, 50, 204),   # Purple
-            'surprised': (255, 105, 180), # Hot Pink
-            'disgusted': (139, 69, 19),  # Brown
-            'neutral': (128, 128, 128)   # Gray
+            'fear': (153, 50, 204),      # Purple
+            'surprise': (255, 105, 180), # Hot Pink
+            'disgust': (139, 69, 19),    # Brown
+            'contempt': (105, 105, 105), # Dim Gray
+            'neutral': (144, 238, 144)   # Light Green
         }
         
     def visualize_video(self, video_path: str, fps: int = 8, use_face_detection: bool = True, 
@@ -47,26 +47,72 @@ class EmotionVideoVisualizer:
         print(f"\nProcessing video: {video_path}")
         
         # Process video
+        print("\nProcessing with EmotionCLIP detection...")
         self.results = self.detector.process_video(video_path, fps, use_face_detection)
         
-        # Smooth results
-        print("Smoothing predictions...")
-        self.results = self.detector.smooth_emotions(self.results, window_size=5)
+        if not self.results:
+            print("Error: No frames were processed from the video.")
+            return
         
-        # Extract frames
+        # Apply smoothing
+        print("Smoothing predictions with temporal consistency...")
+        self.results = self.detector.smooth_emotions(self.results, window_size=9)
+        
+        # Extract frames for display
+        print("Extracting frames for visualization...")
         self.frames_data = self.detector.extract_frames(video_path, fps)
         
-        # Generate report
+        # Generate overall report
         report = self.detector.generate_report(self.results)
         self._print_report(report)
+        
+        # Generate segment reports (every 2 seconds)
+        print("\nGenerating segment reports...")
+        segment_reports = self._generate_segment_reports(fps, segment_duration=2)
+        self._print_segment_reports(segment_reports)
         
         # Display video with emotions
         self._display_opencv(display_fps)
     
+    def _generate_segment_reports(self, fps: int, segment_duration: int = 2) -> Dict[float, str]:
+        """
+        Generate emotion reports for time segments
+        
+        Args:
+            fps: Frames per second used in processing
+            segment_duration: Duration of each segment in seconds
+            
+        Returns:
+            Dictionary mapping timestamp to dominant emotion
+        """
+        emotions_at_timestamps = {}
+        segment_frames = segment_duration * fps
+        
+        for i in range(int(len(self.results) / segment_frames)):
+            start = i * segment_frames
+            end = min((i + 1) * segment_frames, len(self.results))
+            segment = self.results[start:end]
+            
+            if segment:  # Make sure segment is not empty
+                segment_report = self.detector.generate_report(segment)
+                timestamp = segment[-1].timestamp  # Use last frame's timestamp
+                emotions_at_timestamps[timestamp] = segment_report['overall_mood'].upper()
+        
+        return emotions_at_timestamps
+    
+    def _print_segment_reports(self, segment_reports: Dict[float, str]):
+        """Print segment-by-segment emotion analysis"""
+        print("\n" + "="*60)
+        print("SEGMENT ANALYSIS (2-second intervals)")
+        print("="*60)
+        for timestamp, emotion in sorted(segment_reports.items()):
+            print(f"  {timestamp:6.2f}s: {emotion}")
+        print("="*60)
+    
     def _print_report(self, report: Dict):
         """Print summary report"""
         print("\n" + "="*60)
-        print("EMOTION DETECTION REPORT")
+        print("OVERALL EMOTION DETECTION REPORT")
         print("="*60)
         print(f"Overall Mood: {report['overall_mood'].upper()}")
         print(f"Average Confidence: {report['average_confidence']:.2%}")
@@ -76,7 +122,6 @@ class EmotionVideoVisualizer:
                                         key=lambda x: x[1], reverse=True):
             bar = "█" * int(percentage / 2)
             print(f"  {emotion:12} {bar:25} {percentage:5.1f}%")
-        print("\n" + report['summary'])
         print("="*60)
     
     def _create_emotion_chart(self, emotions: Dict[str, float], width: int = 400, height: int = 600):
@@ -287,14 +332,14 @@ if __name__ == "__main__":
         visualizer = EmotionVideoVisualizer(detector)
         
         # Get video path from command line or use default
-        video_path = sys.argv[1] if len(sys.argv) > 1 else "test_1.mp4"
+        video_path = sys.argv[1] if len(sys.argv) > 1 else "test_2.mp4"
         
         # Process and visualize video
         visualizer.visualize_video(
             video_path, 
-            fps=8,  # Analysis FPS
+            fps=15,  # Matching the main project fps
             use_face_detection=True,
-            display_fps=15  # Display FPS
+            display_fps=15  # Display FPS (can be different from processing fps)
         )
         
     except Exception as e:
