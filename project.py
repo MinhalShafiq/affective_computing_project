@@ -342,7 +342,13 @@ def process_job(job_id: str, video_url: str):
             logger.info("✓ Smoothing complete")
             
             logger.info("Generating final report...")
-            report = detector.generate_report(smoothed)
+            emotions_at_timestamps = {}
+            fps = 8
+            for i in range(int(len(smoothed_results) / (2*fps))):
+                start = i * 2 * fps
+                end = min((i + 1) * 2 * fps, len(smoothed_results))
+                report = detector.generate_report(smoothed)
+                emotions_at_timestamps[smoothed_results[(i + 1) * 2 * fps - 1].timestamp] = report['overall_mood'].upper()
             logger.info("✓ Report generated")
             
             emotion_scores = {
@@ -352,7 +358,7 @@ def process_job(job_id: str, video_url: str):
             
             JOBS[job_id] = {
                 "status": "completed",
-                "result": emotion_scores,
+                "result": emotions_at_timestamps,
                 "completed_at": datetime.utcnow().isoformat()
             }
             
