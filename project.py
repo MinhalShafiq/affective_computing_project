@@ -90,6 +90,13 @@ class EmotionCLIPDetector:
             state_dict = checkpoint['model']
         else:
             state_dict = checkpoint
+
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith("backbone."):
+                new_state_dict[k.removeprefix("backbone.")] = v
+            else:
+                new_state_dict[k] = v
         
         config_path = os.path.join(os.path.dirname(__file__), 'EmotionCLIP', 'src', 'models', 'model_configs', 'ViT-B-32.json')
         if os.path.exists(config_path):
@@ -107,9 +114,9 @@ class EmotionCLIPDetector:
         model = CLIP(embed_dim=config['embed_dim'], vision_cfg=vision_cfg, text_cfg=text_cfg, quick_gelu=False)
         
         try:
-            model.load_state_dict(state_dict, strict=True)
+            model.load_state_dict(new_state_dict, strict=True)
         except RuntimeError:
-            missing, unexpected = model.load_state_dict(state_dict, strict=False)
+            missing, unexpected = model.load_state_dict(new_state_dict, strict=False)
             if missing:
                 logger.warning(f"Missing keys: {len(missing)}")
             if unexpected:
