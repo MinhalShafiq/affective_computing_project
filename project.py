@@ -344,11 +344,11 @@ def process_job(job_id: str, video_url: str):
             logger.info("Generating final report...")
             emotions_at_timestamps = {}
             fps = 8
-            for i in range(int(len(smoothed_results) / (2*fps))):
+            for i in range(int(len(smoothed) / (2*fps))):
                 start = i * 2 * fps
-                end = min((i + 1) * 2 * fps, len(smoothed_results))
+                end = min((i + 1) * 2 * fps, len(smoothed))
                 report = detector.generate_report(smoothed)
-                emotions_at_timestamps[smoothed_results[(i + 1) * 2 * fps - 1].timestamp] = report['overall_mood'].upper()
+                emotions_at_timestamps[smoothed[(i + 1) * 2 * fps - 1].timestamp] = report['overall_mood'].upper()
             logger.info("✓ Report generated")
             
             emotion_scores = {
